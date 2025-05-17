@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +38,13 @@ export default function PrayerTimes() {
   const [reminderMinutes, setReminderMinutes] = useState<number>(15);
   const [selectedPrayer, setSelectedPrayer] = useState<string>("");
   const { toast } = useToast();
+  
+  // Add form for the reminder dialog
+  const reminderForm = useForm({
+    defaultValues: {
+      reminderTime: 15
+    }
+  });
   
   // Get current location coordinates
   const getCurrentLocation = () => {
@@ -317,7 +323,7 @@ export default function PrayerTimes() {
                                   </DialogHeader>
                                   
                                   <div className="py-4">
-                                    <Form>
+                                    <Form {...reminderForm}>
                                       <FormItem>
                                         <FormLabel>Minutes before prayer:</FormLabel>
                                         <FormControl>
