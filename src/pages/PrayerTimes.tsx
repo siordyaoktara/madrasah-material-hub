@@ -4,43 +4,71 @@ import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
+import { fetchPrayerTimes, fetchWeeklyPrayerTimes, PrayerTime } from '@/services/prayerTimeService';
+import { useToast } from '@/components/ui/use-toast';
+import { Loader2 } from 'lucide-react';
 
 export default function PrayerTimes() {
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([]);
+  const [formattedDate, setFormattedDate] = useState<string>("");
+  const [nextPrayer, setNextPrayer] = useState<string>("");
+  const [weeklyTimes, setWeeklyTimes] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [weeklyLoading, setWeeklyLoading] = useState<boolean>(false);
+  const { toast } = useToast();
+  
+  // Latitude and longitude (default to Mecca)
+  const latitude = 21.3891;
+  const longitude = 39.8579;
   
   useEffect(() => {
     document.title = 'Prayer Times | Islamic School Academic System';
+    loadPrayerTimes();
+    loadWeeklyTimes();
   }, []);
-
-  const formatDate = (date?: Date) => {
-    if (!date) return "";
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+  
+  useEffect(() => {
+    if (date) {
+      loadPrayerTimes(date);
+    }
+  }, [date]);
+  
+  const loadPrayerTimes = async (selectedDate?: Date) => {
+    setLoading(true);
+    try {
+      const data = await fetchPrayerTimes(selectedDate, latitude, longitude);
+      setPrayerTimes(data.prayerTimes);
+      setFormattedDate(data.date);
+      setNextPrayer(data.nextPrayer);
+    } catch (error) {
+      console.error("Failed to load prayer times:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load prayer times. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // Mock prayer times for display
-  const dayPrayerTimes = {
-    fajr: '5:42 AM',
-    sunrise: '7:03 AM',
-    dhuhr: '12:15 PM',
-    asr: '3:45 PM',
-    maghrib: '6:22 PM',
-    isha: '7:45 PM',
+  
+  const loadWeeklyTimes = async () => {
+    setWeeklyLoading(true);
+    try {
+      const data = await fetchWeeklyPrayerTimes(latitude, longitude);
+      setWeeklyTimes(data);
+    } catch (error) {
+      console.error("Failed to load weekly prayer times:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load weekly prayer times. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setWeeklyLoading(false);
+    }
   };
-
-  const weeklyTimes = [
-    { day: 'Monday', fajr: '5:40 AM', dhuhr: '12:15 PM', asr: '3:45 PM', maghrib: '6:22 PM', isha: '7:45 PM' },
-    { day: 'Tuesday', fajr: '5:41 AM', dhuhr: '12:15 PM', asr: '3:45 PM', maghrib: '6:23 PM', isha: '7:46 PM' },
-    { day: 'Wednesday', fajr: '5:42 AM', dhuhr: '12:15 PM', asr: '3:46 PM', maghrib: '6:24 PM', isha: '7:47 PM' },
-    { day: 'Thursday', fajr: '5:43 AM', dhuhr: '12:16 PM', asr: '3:46 PM', maghrib: '6:25 PM', isha: '7:48 PM' },
-    { day: 'Friday', fajr: '5:44 AM', dhuhr: '12:16 PM', asr: '3:47 PM', maghrib: '6:26 PM', isha: '7:49 PM' },
-    { day: 'Saturday', fajr: '5:45 AM', dhuhr: '12:16 PM', asr: '3:47 PM', maghrib: '6:27 PM', isha: '7:50 PM' },
-    { day: 'Sunday', fajr: '5:46 AM', dhuhr: '12:17 PM', asr: '3:48 PM', maghrib: '6:28 PM', isha: '7:51 PM' },
-  ];
 
   return (
     <Layout title="Prayer Times">
@@ -71,17 +99,40 @@ export default function PrayerTimes() {
             <TabsContent value="daily" className="mt-6">
               <Card className="material-card">
                 <CardHeader>
-                  <CardTitle>Prayer Times for {formatDate(date)}</CardTitle>
+                  <CardTitle>Prayer Times for {formattedDate}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {Object.entries(dayPrayerTimes).map(([prayer, time]) => (
-                      <div key={prayer} className="p-4 bg-primary-50 rounded-lg text-center">
-                        <h3 className="text-lg font-medium capitalize">{prayer}</h3>
-                        <p className="text-xl font-bold mt-2">{time}</p>
-                      </div>
-                    ))}
-                  </div>
+                  {loading ? (
+                    <div className="flex justify-center items-center h-40">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {prayerTimes.map((prayer) => (
+                        <div 
+                          key={prayer.name} 
+                          className={`p-4 ${
+                            nextPrayer === prayer.name 
+                              ? 'bg-primary-100 border border-primary-300' 
+                              : 'bg-primary-50'
+                          } rounded-lg text-center`}
+                        >
+                          <div className="flex flex-col items-center">
+                            <h3 className="text-lg font-medium capitalize">{prayer.name}</h3>
+                            {prayer.arabicName && (
+                              <p className="text-sm text-muted-foreground font-arabic">{prayer.arabicName}</p>
+                            )}
+                            <p className="text-xl font-bold mt-2">{prayer.time}</p>
+                            {nextPrayer === prayer.name && (
+                              <span className="mt-2 text-xs px-2 py-1 bg-primary-200 rounded-full">
+                                Next Prayer
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -92,32 +143,40 @@ export default function PrayerTimes() {
                   <CardTitle>Weekly Prayer Times</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="py-3 px-2 text-left">Day</th>
-                          <th className="py-3 px-2 text-center">Fajr</th>
-                          <th className="py-3 px-2 text-center">Dhuhr</th>
-                          <th className="py-3 px-2 text-center">Asr</th>
-                          <th className="py-3 px-2 text-center">Maghrib</th>
-                          <th className="py-3 px-2 text-center">Isha</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {weeklyTimes.map((day) => (
-                          <tr key={day.day} className="border-b">
-                            <td className="py-3 px-2 font-medium">{day.day}</td>
-                            <td className="py-3 px-2 text-center">{day.fajr}</td>
-                            <td className="py-3 px-2 text-center">{day.dhuhr}</td>
-                            <td className="py-3 px-2 text-center">{day.asr}</td>
-                            <td className="py-3 px-2 text-center">{day.maghrib}</td>
-                            <td className="py-3 px-2 text-center">{day.isha}</td>
+                  {weeklyLoading ? (
+                    <div className="flex justify-center items-center h-40">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="py-3 px-2 text-left">Day</th>
+                            <th className="py-3 px-2 text-center">Fajr</th>
+                            <th className="py-3 px-2 text-center">Sunrise</th>
+                            <th className="py-3 px-2 text-center">Dhuhr</th>
+                            <th className="py-3 px-2 text-center">Asr</th>
+                            <th className="py-3 px-2 text-center">Maghrib</th>
+                            <th className="py-3 px-2 text-center">Isha</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {weeklyTimes.map((day) => (
+                            <tr key={day.day} className="border-b">
+                              <td className="py-3 px-2 font-medium">{day.day}</td>
+                              <td className="py-3 px-2 text-center">{day.fajr}</td>
+                              <td className="py-3 px-2 text-center">{day.sunrise}</td>
+                              <td className="py-3 px-2 text-center">{day.dhuhr}</td>
+                              <td className="py-3 px-2 text-center">{day.asr}</td>
+                              <td className="py-3 px-2 text-center">{day.maghrib}</td>
+                              <td className="py-3 px-2 text-center">{day.isha}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

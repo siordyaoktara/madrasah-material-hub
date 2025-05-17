@@ -1,12 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-
-interface PrayerTime {
-  name: string;
-  time: string;
-  arabicName: string;
-}
+import { PrayerTime } from "@/services/prayerTimeService";
 
 interface PrayerTimesCardProps {
   date: string;

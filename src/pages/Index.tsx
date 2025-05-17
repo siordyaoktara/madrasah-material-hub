@@ -1,10 +1,11 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import StatCard from '@/components/dashboard/StatCard';
 import ActivityTimeline from '@/components/dashboard/ActivityTimeline';
 import PrayerTimesCard from '@/components/dashboard/PrayerTimesCard';
 import { Users, Book, Calendar, User } from 'lucide-react';
+import { fetchPrayerTimes, PrayerTime } from '@/services/prayerTimeService';
 
 const recentActivities = [
   {
@@ -66,8 +67,29 @@ const prayerTimes = [
 ];
 
 export default function Index() {
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([]);
+  const [formattedDate, setFormattedDate] = useState<string>("");
+  const [nextPrayer, setNextPrayer] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+
   useEffect(() => {
     document.title = 'Dashboard | Islamic School Academic System';
+    
+    // Load prayer times
+    const loadPrayerTimes = async () => {
+      try {
+        const data = await fetchPrayerTimes();
+        setPrayerTimes(data.prayerTimes);
+        setFormattedDate(data.date);
+        setNextPrayer(data.nextPrayer);
+      } catch (error) {
+        console.error("Failed to load prayer times:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadPrayerTimes();
   }, []);
 
   return (
@@ -107,11 +129,15 @@ export default function Index() {
             <ActivityTimeline items={recentActivities} />
           </div>
           <div>
-            <PrayerTimesCard 
-              date="May 17, 2025"
-              prayerTimes={prayerTimes}
-              nextPrayer="Asr"
-            />
+            {loading ? (
+              <div>Loading prayer times...</div>
+            ) : (
+              <PrayerTimesCard 
+                date={formattedDate}
+                prayerTimes={prayerTimes}
+                nextPrayer={nextPrayer}
+              />
+            )}
           </div>
         </div>
       </div>
